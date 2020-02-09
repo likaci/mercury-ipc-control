@@ -1,10 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
 import base64
 import json
 import sys
-from urllib import unquote
+from urllib.parse import unquote
 
 import requests
 import rsa
@@ -63,11 +63,7 @@ def convert_rsa_key(s):
     b_str = base64.b64decode(s)
     if len(b_str) < 162:
         return False
-    hex_str = ''
-    for x in b_str:
-        h = hex(ord(x))[2:]
-        h = h.rjust(2, '0')
-        hex_str += h
+    hex_str = b_str.hex()
     m_start = 29 * 2
     e_start = 159 * 2
     m_len = 128 * 2
@@ -82,29 +78,29 @@ def rsa_encrypt(string, pubkey):
     modulus = int(key[0], 16)
     exponent = int(key[1], 16)
     rsa_pubkey = rsa.PublicKey(modulus, exponent)
-    crypto = rsa.encrypt(string, rsa_pubkey)
+    crypto = rsa.encrypt(string.encode(), rsa_pubkey)
     return base64.b64encode(crypto)
 
 
 def get_stok(url, username, password):
     # get key nonce
-    print "-get rsa and nonce"
+    print("-get rsa and nonce")
     j = post_data(url, json.dumps({"method": "do", "login": {}}))
     key = unquote(j['data']['key'])
     nonce = str(j['data']['nonce'])
-    print "rsa: " + key
-    print "nonce: " + nonce
+    print("rsa: ", key)
+    print("nonce: ", nonce)
 
     # encrypt tp
-    print "--encrypt password by tp"
+    print("--encrypt password by tp")
     tp_password = tp_encrypt(password)
     tp_password += ":" + nonce
-    print "tp_password: " + tp_password
+    print("tp_password: ", tp_password)
 
     # rsa password
-    print "--encrypt password by rsa"
+    print("--encrypt password by rsa")
     rsa_password = rsa_encrypt(tp_password, key)
-    print "rsa_password: " + rsa_password
+    print("rsa_password: ", rsa_password)
 
     # login
     d = {
@@ -112,10 +108,10 @@ def get_stok(url, username, password):
         "login": {
             "username": username,
             "encrypt_type": "2",
-            "password": rsa_password
+            "password": rsa_password.decode()
         }
     }
-    print "--login"
+    print("--login")
     j = post_data(url, json.dumps(d))
     stok = j["stok"]
     return stok
@@ -123,9 +119,9 @@ def get_stok(url, username, password):
 
 def post_data(base_url, data, stok=""):
     url = base_url + (("/stok=" + stok + "/ds") if stok else "")
-    print "post: " + url + " data: " + data
+    print("post: ", url, " data: ", data)
     r = requests.post(url, data)
-    print "response: " + str(r.status_code) + " " + str(r.json())
+    print("response: ", str(r.status_code), " ", str(r.json()))
     return r.json()
 
 
@@ -134,8 +130,8 @@ if __name__ == '__main__':
     password = str(sys.argv[2])
     base_url = str(sys.argv[3])
     data = str(sys.argv[4])
-    print "username: " + username
-    print "password: " + password
-    print "base_url: " + base_url
-    print "data: " + data
+    print("username: ", username)
+    print("password: ", password)
+    print("base_url: ", base_url)
+    print("data: ", data)
     post_data(base_url, data, get_stok(base_url, username, password))
